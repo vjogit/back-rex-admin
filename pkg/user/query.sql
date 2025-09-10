@@ -24,6 +24,9 @@ RETURNING *;
 -- name: GetUserById :one
 SELECT * FROM public.user WHERE id = $1;
 
+-- name: GetUserByMail :one
+SELECT * FROM public.user WHERE email = $1;
+
 -- name: ListUser :many
 SELECT * FROM public.user ORDER BY id;
 
@@ -39,6 +42,3 @@ RETURNING version;
 
 -- name: DeleteUser :exec
 DELETE FROM public.user WHERE id = @id;
-
--- name: GetIdFromLdapid :one
-  SELECT id FROM public.user WHERE ldapid = $1;

@@ -14,9 +14,9 @@ import (
 func PostLdap(r *http.Request, ldapIdentity *auth.LdapIdentity) (*jwt.MapClaims, *string, error) {
 
 	pgCtx := services.GetPgCtx(r.Context())
-	queries := auth.New(pgCtx.Db)
+	queriesAuth := auth.New(pgCtx.Db)
 
-	user, err := queries.GetUserByLdapId(r.Context(), int32(ldapIdentity.Id))
+	userByMail, err := queriesAuth.GetUserByMail(r.Context(), ldapIdentity.Mail)
 
 	if err == pgx.ErrNoRows {
 		return nil, nil, fmt.Errorf("utilisateur inconnu")
@@ -26,7 +26,7 @@ func PostLdap(r *http.Request, ldapIdentity *auth.LdapIdentity) (*jwt.MapClaims,
 		return nil, nil, err
 	}
 
-	claims := jwt.MapClaims{"roles": user.Roles}
-	subject := strconv.Itoa(int(user.ID))
+	claims := jwt.MapClaims{"roles": userByMail.Roles}
+	subject := strconv.Itoa(int(userByMail.ID))
 	return &claims, &subject, nil // Pas de claims supplémentaires pour l'instant
 }

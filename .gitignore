@@ -31,4 +31,5 @@ go.work.sum
 # .idea/
 # .vscode/
 cmd/cmd_*
+cmd/__*
 

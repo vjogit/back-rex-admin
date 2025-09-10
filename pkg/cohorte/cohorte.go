@@ -228,16 +228,6 @@ func getEtudiant(rows [][]string, cohorte []Cohorte) ([]Etudiant, error) {
 			}
 		}
 
-		// recupere l'identifiant ldap.
-
-		ldapId, err := getLdapInformation(etudiants[len(etudiants)-1])
-		if err == nil {
-			etudiants[len(etudiants)-1].LdapIdentity = ldapId
-			fmt.Printf("%s %d\n", etudiants[len(etudiants)-1].Nom, ldapId.Id)
-		} else {
-			fmt.Printf("\tinconnu: %s %s: %v\n", etudiants[len(etudiants)-1].Prenom, etudiants[len(etudiants)-1].Nom, err)
-		}
-
 	}
 
 	return etudiants, nil
@@ -318,21 +308,24 @@ func CreateEtudiant(tx pgx.Tx, e Etudiant, ctx context.Context) error {
 	queriesUerAdmin := userAdmin.New(tx)
 
 	var (
+		u   userAdmin.User
 		id  int32
 		err error
 	)
 
-	id, err = queriesUerAdmin.GetIdFromLdapid(ctx, int32(e.LdapIdentity.Id))
-	if err != nil {
-		if err != pgx.ErrNoRows {
-			return err
-		}
+	u, err = queriesUerAdmin.GetUserByMail(ctx, e.LdapIdentity.Mail)
+
+	switch err {
+	case nil:
+		id = u.ID
+	case pgx.ErrNoRows:
 		idUser, err := user.CreateUser(tx, e.LdapIdentity, ctx, "etudiant", true)
 		if err != nil {
 			return err
 		}
 		id = int32(idUser)
-
+	default:
+		return err
 	}
 
 	// doit mettre a jour les cohortes de l'utilisateur
