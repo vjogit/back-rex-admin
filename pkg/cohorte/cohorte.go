@@ -30,30 +30,48 @@ func ImportCohorte(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Récupère le fichier (le champ doit s'appeler "file")
-	file, header, err := r.FormFile("file")
+	emails, err := getFile("emails", r)
 	if err != nil {
-		services.ErrRender(errors.New("fichier manquant"))
+		services.ErrRender(err)
 		return
 	}
-	defer file.Close()
+	defer (*emails).Close()
+
+	// Récupère le fichier (le champ doit s'appeler "file")
+	cohortes, err := getFile("cohortes", r)
+	if err != nil {
+		services.ErrRender(err)
+		return
+	}
+	defer (*cohortes).Close()
+
+	fmt.Println()
+
+	// err = cohorteToDB(r, cohortes)
+	// if err != nil {
+	// 	services.ErrRender(err)
+	// 	return
+	// }
+}
+
+func getFile(name string, r *http.Request) (*multipart.File, error) {
+	// Récupère le fichier (le champ doit s'appeler "file")
+	file, header, err := r.FormFile(name)
+	if err != nil {
+		return nil, errors.New("fichier manquant:cohortes")
+	}
 
 	if !strings.HasSuffix(strings.ToLower(header.Filename), ".xlsx") {
-		services.ErrRender(errors.New("le fichier n'a pas l'extension .xlsx"))
-		return
+		return nil, errors.New("le fichier n'a pas l'extension .xlsx")
 	}
 
 	// Optionnel : vérifier le Content-Type
 	contentType := header.Header.Get("Content-Type")
 	if contentType != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
-		services.ErrRender(errors.New("le fichier n'est pas de type xlsx"))
-		return
+		return nil, errors.New("le fichier n'est pas de type xlsx")
 	}
 
-	err = cohorteToDB(r, file)
-	if err != nil {
-		services.ErrRender(err)
-		return
-	}
+	return &file, nil
 }
 
 func cohorteToDB(r *http.Request, file multipart.File) error {
