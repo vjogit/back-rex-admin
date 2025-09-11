@@ -44,6 +44,35 @@ func (q *Queries) GetCohorteIdFromIdExterne(ctx context.Context, idexterne int32
 	return id, err
 }
 
+const getCohortes = `-- name: GetCohortes :many
+SELECT id, nom FROM public.cohorte ORDER BY id
+`
+
+type GetCohortesRow struct {
+	ID  int32  `json:"id"`
+	Nom string `json:"nom"`
+}
+
+func (q *Queries) GetCohortes(ctx context.Context) ([]GetCohortesRow, error) {
+	rows, err := q.db.Query(ctx, getCohortes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCohortesRow
+	for rows.Next() {
+		var i GetCohortesRow
+		if err := rows.Scan(&i.ID, &i.Nom); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertUserCohorte = `-- name: InsertUserCohorte :exec
 INSERT INTO user_cohorte (user_id, cohorte_id) VALUES ($1, $2)
 `

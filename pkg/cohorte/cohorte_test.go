@@ -1,6 +1,7 @@
 package cohorte
 
 import (
+	"back-rex-admin/pkg/cohorte/testdata"
 	"back-rex-common/pkg/services"
 	"bytes"
 	"context"
@@ -14,29 +15,22 @@ import (
 
 func TestImportCohorte(t *testing.T) {
 
-	// Ouvre le fichier à uploader
-	filePath := "/home/vjo/Bureau/eleves-gropes-1A-FIG-2024-2025.partiel.xlsx"
-	file, err := os.Open(filePath)
-	if err != nil {
-		t.Fatalf("impossible d'ouvrir le fichier: %v", err)
-	}
-	defer file.Close()
-
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	// Crée une partie personnalisée pour le fichier
-	partHeader := make(textproto.MIMEHeader)
-	partHeader.Set("Content-Disposition", `form-data; name="file"; filename="eleves-gropes-1A-FIG-2024-2025.xlsx"`)
-	partHeader.Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-	part, err := writer.CreatePart(partHeader)
+	err := addFilePart(writer, "emails", testdata.Path("mails.xlsx"))
 	if err != nil {
-		t.Fatalf("impossible de créer le champ file: %v", err)
+		t.Fatalf("Failed to add emails file part: %v", err)
 	}
-	_, err = io.Copy(part, file)
+
+	err = addFilePart(writer, "cohortes", testdata.Path("cohortes.xlsx"))
 	if err != nil {
-		t.Fatalf("impossible de copier le fichier: %v", err)
+		t.Fatalf("Failed to add cohortes file part: %v", err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("Failed to close writer: %v", err)
 	}
 	writer.Close()
 
@@ -51,7 +45,35 @@ func TestImportCohorte(t *testing.T) {
 	ctx := context.WithValue(req.Context(), services.PgCtxKey2, pg)
 	req = req.WithContext(ctx)
 
-	ImportCohorte(rr, req)
+	cfg := services.LDAPConfig{
+		URL: "ldap://localhost:3890",
+		//URL:    "ldap://ldap.mines-ales.fr:389",
+		BaseDN: "dc=ema,dc=fr",
+	}
+
+	ImportCohorte(rr, req, cfg)
 
 	// Optionally, check output or error rendering
+}
+
+func addFilePart(writer *multipart.Writer, fieldName, filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	partHeader := make(textproto.MIMEHeader)
+	partHeader.Set("Content-Disposition", `form-data; name="`+fieldName+`"; filename="`+file.Name()+`"`)
+	partHeader.Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+	part, err := writer.CreatePart(partHeader)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(part, file)
+	if err != nil {
+		return err
+	}
+	return nil
 }

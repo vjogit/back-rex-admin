@@ -10,3 +10,6 @@ DELETE FROM user_cohorte WHERE user_id = $1;
 
 -- name: GetCohorteIdFromIdExterne :one
 SELECT id FROM public.cohorte WHERE idExterne = $1;
+
+-- name: GetCohortes :many
+SELECT id, nom FROM public.cohorte ORDER BY id;

@@ -1,7 +1,16 @@
 package cohorte
 
-import "github.com/go-chi/chi/v5"
+import (
+	"back-rex-common/pkg/services"
+	"net/http"
 
-func RouteCohorte(r chi.Router) {
-	r.Post("/", ImportCohorte)
+	"github.com/go-chi/chi/v5"
+)
+
+func RouteCohorte(r chi.Router, ldapConfig services.LDAPConfig) {
+	r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+		ImportCohorte(w, r, ldapConfig)
+	})
+
+	r.Get("/", GetCohortes)
 }

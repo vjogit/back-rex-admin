@@ -34,7 +34,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/xuri/excelize/v2 v2.9.1
 	golang.org/x/crypto v0.38.0 // indirect
-	golang.org/x/text v0.25.0
+	golang.org/x/text v0.25.0  // indirect
 )
 
 replace back-rex-common => ../back-rex-common
