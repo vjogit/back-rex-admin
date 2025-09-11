@@ -60,16 +60,17 @@ func getEtudiantFromEmails(emails *multipart.File) ([]Etudiant, []string, error)
 			continue
 		}
 
-		if len(cells) < 7 {
+		if len(cells) < 10 {
 			warn = append(warn, fmt.Sprintf("fichier emails: ligne %d: nombre de colonnes insuffisant", i+1))
 			continue
 		}
 
 		etudiant := Etudiant{
-			Nom:    strings.TrimSpace(cells[4]),
-			Prenom: strings.TrimSpace(cells[5]),
+			Nom:       strings.TrimSpace(cells[1]),
+			Prenom:    strings.TrimSpace(cells[2]),
+			IdInterne: strings.TrimSpace(cells[10]),
 			LdapIdentity: &auth.LdapIdentity{
-				Mail: strings.TrimSpace(cells[6]),
+				Mail: strings.TrimSpace(cells[9]),
 			},
 		}
 
@@ -222,7 +223,7 @@ func affecteCohorteToEtudiant(etudiant2 []Etudiant, cohortesFiles *multipart.Fil
 	// crée une map pour retrouver les étudiants par nom et prenom
 	etudiantCohorteMap := make(map[string]*Etudiant)
 	for i := range etudiantCohorteFile {
-		etudiantCohorteMap[etudiantCohorteFile[i].Nom+" "+etudiantCohorteFile[i].Prenom] = &etudiantCohorteFile[i]
+		etudiantCohorteMap[etudiantCohorteFile[i].IdInterne] = &etudiantCohorteFile[i]
 	}
 
 	var warns []string
@@ -231,8 +232,8 @@ func affecteCohorteToEtudiant(etudiant2 []Etudiant, cohortesFiles *multipart.Fil
 		if e.LdapIdentity == nil {
 			continue
 		}
-		key := e.Nom + " " + e.Prenom
-		if etu, ok := etudiantCohorteMap[key]; ok {
+
+		if etu, ok := etudiantCohorteMap[e.IdInterne]; ok {
 			// ajoute les cohortes
 			etudiant2[i].Cohortes = append(etu.Cohortes, e.Cohortes...)
 		} else {
@@ -255,11 +256,7 @@ func getEtudiantFromCohorteFile(rows [][]string, cohorte []Cohorte) ([]Etudiant,
 			switch j {
 			case 0:
 				etudiants = append(etudiants, Etudiant{})
-				id, err := strconv.Atoi(cell)
-				if err != nil {
-					return nil, fmt.Errorf("ligne %d: id invalide: %v", i+1, err)
-				}
-				etudiants[len(etudiants)-1].Id = id
+				etudiants[len(etudiants)-1].IdInterne = cell
 			case 1:
 				// nom
 				etudiants[len(etudiants)-1].Nom = strings.TrimSpace(cell)
@@ -395,7 +392,7 @@ type Cohorte struct {
 	Nom string `json:"nom"`
 }
 type Etudiant struct {
-	Id           int
+	IdInterne    string `json:"id_interne"`
 	Nom          string `json:"nom"`
 	Prenom       string `json:"prenom"`
 	LdapIdentity *auth.LdapIdentity
