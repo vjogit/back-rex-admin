@@ -11,81 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const addAdminRole = `-- name: AddAdminRole :exec
-UPDATE "user"
-SET roles = array_append(roles, 'admin')
-WHERE id = $1 AND NOT ('admin' = ANY(roles))
-`
-
-func (q *Queries) AddAdminRole(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, addAdminRole, id)
-	return err
-}
-
-const createUser = `-- name: CreateUser :one
-INSERT INTO public.user (name, surname, email, roles)
-VALUES ($1, $2, $3, $4)
-RETURNING id, version, name, surname, email, roles
-`
-
-type CreateUserParams struct {
-	Name    pgtype.Text `json:"name"`
-	Surname pgtype.Text `json:"surname"`
-	Email   string      `json:"email"`
-	Roles   pgtype.Text `json:"roles"`
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser,
-		arg.Name,
-		arg.Surname,
-		arg.Email,
-		arg.Roles,
-	)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Version,
-		&i.Name,
-		&i.Surname,
-		&i.Email,
-		&i.Roles,
-	)
-	return i, err
-}
-
-const deleteUser = `-- name: DeleteUser :exec
-DELETE FROM public.user WHERE id = $1
-`
-
-func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, deleteUser, id)
-	return err
-}
-
-const getUser = `-- name: GetUser :one
-SELECT id, version, name, surname, email, roles FROM "user"
-WHERE id = $1
-`
-
-func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
-	row := q.db.QueryRow(ctx, getUser, id)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Version,
-		&i.Name,
-		&i.Surname,
-		&i.Email,
-		&i.Roles,
-	)
-	return i, err
-}
-
 const getUserById = `-- name: GetUserById :one
-SELECT id, version, name, surname, email, roles FROM public.user WHERE id = $1
+
+SELECT id, version, name, surname, email, roles, blame FROM public.user WHERE id = $1
 `
 
+// -- name: CreateUser :one
+// INSERT INTO public.user (name, surname, email, roles)
+// VALUES (@name, @surname, @email, @roles)
+// RETURNING *;
 func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
 	row := q.db.QueryRow(ctx, getUserById, id)
 	var i User
@@ -96,12 +30,13 @@ func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
 		&i.Surname,
 		&i.Email,
 		&i.Roles,
+		&i.Blame,
 	)
 	return i, err
 }
 
 const getUserByMail = `-- name: GetUserByMail :one
-SELECT id, version, name, surname, email, roles FROM public.user WHERE email = $1
+SELECT id, version, name, surname, email, roles, blame FROM public.user WHERE email = $1
 `
 
 func (q *Queries) GetUserByMail(ctx context.Context, email string) (User, error) {
@@ -114,12 +49,13 @@ func (q *Queries) GetUserByMail(ctx context.Context, email string) (User, error)
 		&i.Surname,
 		&i.Email,
 		&i.Roles,
+		&i.Blame,
 	)
 	return i, err
 }
 
 const listUser = `-- name: ListUser :many
-SELECT id, version, name, surname, email, roles FROM public.user ORDER BY id
+SELECT id, version, name, surname, email, roles, blame FROM public.user ORDER BY id
 `
 
 func (q *Queries) ListUser(ctx context.Context) ([]User, error) {
@@ -138,6 +74,7 @@ func (q *Queries) ListUser(ctx context.Context) ([]User, error) {
 			&i.Surname,
 			&i.Email,
 			&i.Roles,
+			&i.Blame,
 		); err != nil {
 			return nil, err
 		}
@@ -150,7 +87,7 @@ func (q *Queries) ListUser(ctx context.Context) ([]User, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, version, name, surname, email, roles FROM "user"
+SELECT id, version, name, surname, email, roles, blame FROM "user"
 ORDER BY id ASC
 `
 
@@ -170,6 +107,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Surname,
 			&i.Email,
 			&i.Roles,
+			&i.Blame,
 		); err != nil {
 			return nil, err
 		}
@@ -181,47 +119,38 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
-const removeAdminRole = `-- name: RemoveAdminRole :exec
-UPDATE "user"
-SET roles = array_remove(roles, 'admin')
-WHERE id = $1
-`
-
-func (q *Queries) RemoveAdminRole(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, removeAdminRole, id)
-	return err
-}
-
-const updateUser = `-- name: UpdateUser :one
+const updatePartialUser = `-- name: UpdatePartialUser :one
 UPDATE public.user
-SET name = $1,
-    surname = $2,
-    email = $3,
-    roles = $4,
-    version = version + 1
-WHERE id = $5 AND version = $6
-RETURNING version
+SET version = version + 1,
+    roles = $1,
+    blame = $2
+WHERE id = $3 AND version = $4
+RETURNING id, version, name, surname, email, roles, blame
 `
 
-type UpdateUserParams struct {
-	Name    pgtype.Text `json:"name"`
-	Surname pgtype.Text `json:"surname"`
-	Email   string      `json:"email"`
+type UpdatePartialUserParams struct {
 	Roles   pgtype.Text `json:"roles"`
+	Blame   pgtype.Bool `json:"blame"`
 	ID      int32       `json:"id"`
 	Version pgtype.Int4 `json:"version"`
 }
 
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (pgtype.Int4, error) {
-	row := q.db.QueryRow(ctx, updateUser,
-		arg.Name,
-		arg.Surname,
-		arg.Email,
+func (q *Queries) UpdatePartialUser(ctx context.Context, arg UpdatePartialUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, updatePartialUser,
 		arg.Roles,
+		arg.Blame,
 		arg.ID,
 		arg.Version,
 	)
-	var version pgtype.Int4
-	err := row.Scan(&version)
-	return version, err
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Version,
+		&i.Name,
+		&i.Surname,
+		&i.Email,
+		&i.Roles,
+		&i.Blame,
+	)
+	return i, err
 }

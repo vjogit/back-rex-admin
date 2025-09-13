@@ -14,14 +14,15 @@ import (
 func RouteUtilisateur(r chi.Router) {
 	// r.Post("/", CreateUser)
 
-	// r.Route("/{userID}", func(r chi.Router) {
-	// 	r.Use(UserUse)            // Load the *Article on the request context
-	// 	r.Get("/", GetUser)       // GET /articles/123
-	// 	r.Put("/", UpdateUser)    // PUT /articles/123
-	// 	r.Delete("/", DeleteUser) // DELETE /articles/123
-	// })
+	r.Route("/{userID}", func(r chi.Router) {
+		r.Use(UserUse)         // Load the *Article on the request context
+		r.Get("/", GetUser)    // GET /articles/123
+		r.Put("/", UpdateUser) // PUT /articles/123
+		// 	r.Delete("/", DeleteUser) // DELETE /articles/123
+	})
 
 	r.Get("/", ListUser)
+	r.Get("/check-mail", CheckMail)
 }
 
 func UserUse(next http.Handler) http.Handler {

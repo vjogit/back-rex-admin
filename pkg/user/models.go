@@ -11,8 +11,9 @@ import (
 type User struct {
 	ID      int32       `json:"id"`
 	Version pgtype.Int4 `json:"version"`
-	Name    pgtype.Text `json:"name"`
-	Surname pgtype.Text `json:"surname"`
+	Name    string      `json:"name"`
+	Surname string      `json:"surname"`
 	Email   string      `json:"email"`
 	Roles   pgtype.Text `json:"roles"`
+	Blame   pgtype.Bool `json:"blame"`
 }
