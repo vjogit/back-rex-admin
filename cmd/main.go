@@ -59,7 +59,9 @@ func main() {
 		roles := []string{"admin"}
 
 		r.With(auth.Security(cfg.JWT, getAccessToken, &roles)).
-			Route("/user", user.RouteUtilisateur)
+			Route("/user", func(r chi.Router) {
+				user.RouteUtilisateur(r, cfg.LDAP)
+			})
 		r.With(auth.Security(cfg.JWT, getAccessToken, &roles)).
 			Route("/cohorte", func(r chi.Router) {
 				cohorte.RouteCohorte(r, cfg.LDAP)

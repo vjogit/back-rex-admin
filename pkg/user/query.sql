@@ -2,12 +2,6 @@
 SELECT * FROM "user"
 ORDER BY id ASC;
 
-
--- -- name: CreateUser :one
--- INSERT INTO public.user (name, surname, email, roles)
--- VALUES (@name, @surname, @email, @roles)
--- RETURNING *;
-
 -- name: GetUserById :one
 SELECT * FROM public.user WHERE id = $1;
 

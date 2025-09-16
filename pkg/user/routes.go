@@ -11,8 +11,10 @@ import (
 	"github.com/go-chi/render"
 )
 
-func RouteUtilisateur(r chi.Router) {
-	// r.Post("/", CreateUser)
+func RouteUtilisateur(r chi.Router, cfg services.LDAPConfig) {
+	r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+		CreateUser(w, r, cfg)
+	})
 
 	r.Route("/{userID}", func(r chi.Router) {
 		r.Use(UserUse)         // Load the *Article on the request context
@@ -22,7 +24,9 @@ func RouteUtilisateur(r chi.Router) {
 	})
 
 	r.Get("/", ListUser)
-	r.Get("/check-mail", CheckMail)
+	r.Get("/check-mail", func(w http.ResponseWriter, r *http.Request) {
+		CheckMail(w, r, cfg)
+	})
 }
 
 func UserUse(next http.Handler) http.Handler {

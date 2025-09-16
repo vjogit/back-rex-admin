@@ -12,14 +12,9 @@ import (
 )
 
 const getUserById = `-- name: GetUserById :one
-
 SELECT id, version, name, surname, email, roles, blame FROM public.user WHERE id = $1
 `
 
-// -- name: CreateUser :one
-// INSERT INTO public.user (name, surname, email, roles)
-// VALUES (@name, @surname, @email, @roles)
-// RETURNING *;
 func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
 	row := q.db.QueryRow(ctx, getUserById, id)
 	var i User
