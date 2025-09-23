@@ -3,7 +3,6 @@ package cohorte
 import (
 	"back-rex-common/pkg/services"
 
-	"errors"
 	"net/http"
 
 	"github.com/go-chi/render"
@@ -14,7 +13,7 @@ func ImportCohorte(w http.ResponseWriter, r *http.Request, ldapConfig services.L
 	// Parse le multipart form (taille max 10 Mo ici)
 	err := r.ParseMultipartForm(10 << 20)
 	if err != nil {
-		services.ErrRender(errors.New("erreur lors du parsing du formulaire"))
+		services.ErrRender(err)
 		return
 	}
 

@@ -19,5 +19,5 @@ SET version = version + 1,
 WHERE id = @id AND version = @version
 RETURNING *;
 
--- -- name: DeleteUser :exec
--- DELETE FROM public.user WHERE id = @id;
+-- name: DeleteUser :exec
+DELETE FROM public.user WHERE id = @id;

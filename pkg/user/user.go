@@ -122,6 +122,23 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func DeleteUser(w http.ResponseWriter, r *http.Request) {
+	oldUser := getUserFromCtx(r)
+
+	ctx := r.Context()
+	pgctx := services.GetPgCtx(ctx)
+	queries := New(pgctx.Db)
+
+	err := queries.DeleteUser(ctx, oldUser.ID)
+	if err != nil {
+		render.Render(w, r, services.ErrRender(errors.New("erreur lors de la suppression d'un utilisateur")))
+		return
+
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 type MailCheck struct {
 	Exist bool `json:"exist"`
 }
