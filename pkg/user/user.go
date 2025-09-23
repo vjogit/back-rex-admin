@@ -56,7 +56,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request, cfg services.LDAPConfig)
 
 	id, err := user.CreateUser(tx, e, ctx, input.Roles, etudiant)
 	if err != nil {
-		http.Error(w, "Erreur lors de la maj d'un utilisateur", http.StatusInternalServerError)
+		render.Render(w, r, services.ErrRender(err))
 		return
 	}
 
@@ -108,12 +108,12 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err == pgx.ErrNoRows {
-		render.Render(w, r, services.ErrRender(errors.New("mis a jour par une autre personne")))
+		render.Render(w, r, services.ErrRender("mis a jour par une autre personne"))
 		return
 	}
 
 	if err != nil {
-		render.Render(w, r, services.ErrRender(errors.New("erreur lors de la maj d'un utilisateur")))
+		render.Render(w, r, services.ErrRender(err))
 		return
 
 	}
@@ -123,15 +123,15 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
-	oldUser := getUserFromCtx(r)
+	user := getUserFromCtx(r)
 
 	ctx := r.Context()
 	pgctx := services.GetPgCtx(ctx)
 	queries := New(pgctx.Db)
 
-	err := queries.DeleteUser(ctx, oldUser.ID)
+	err := queries.DeleteUser(ctx, user.ID)
 	if err != nil {
-		render.Render(w, r, services.ErrRender(errors.New("erreur lors de la suppression d'un utilisateur")))
+		render.Render(w, r, services.ErrRender(err))
 		return
 
 	}
