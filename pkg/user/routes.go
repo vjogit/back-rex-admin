@@ -3,12 +3,11 @@ package user
 import (
 	"back-rex-common/pkg/services"
 	"context"
-	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/render"
+	"github.com/jackc/pgx/v5"
 )
 
 func RouteUtilisateur(r chi.Router, cfg services.LDAPConfig) {
@@ -24,9 +23,7 @@ func RouteUtilisateur(r chi.Router, cfg services.LDAPConfig) {
 	})
 
 	r.Get("/", ListUser)
-	r.Get("/check-mail", func(w http.ResponseWriter, r *http.Request) {
-		CheckMail(w, r, cfg)
-	})
+
 }
 
 func UserUse(next http.Handler) http.Handler {
@@ -37,14 +34,18 @@ func UserUse(next http.Handler) http.Handler {
 
 			id, err := strconv.Atoi(userID)
 			if err != nil {
-				render.Render(w, r, services.ErrRender(err))
+				services.InvalidRequestError(w, r, err.Error(), services.NO_INFORMATION, nil)
 				return
 			}
 
 			queries := New(pgCtx.Db)
 			user, err := queries.GetUserById(context.Background(), int32(id))
+			if err == pgx.ErrNoRows {
+				services.InvalidRequestError(w, r, "Utilisateur introuvable", services.NO_INFORMATION, nil)
+				return
+			}
 			if err != nil {
-				render.Render(w, r, services.ErrRender(err))
+				services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 				return
 			}
 
@@ -53,6 +54,6 @@ func UserUse(next http.Handler) http.Handler {
 			return
 		}
 
-		render.Render(w, r, services.ErrRender(errors.New("pas d'id utilisateur")))
+		services.InvalidRequestError(w, r, "pas d'id utilisateur", services.NO_INFORMATION, nil)
 	})
 }

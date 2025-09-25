@@ -86,7 +86,7 @@ func getInfoEtudiantFromLdap(etudiant *[]Etudiant, ldapConfig services.LDAPConfi
 	// Connexion au serveur LDAP
 	l, err := ldap.DialURL(ldapConfig.URL)
 	if err != nil {
-		return nil, fmt.Errorf("LDAP connection failed: %v", err)
+		return nil, services.NewAppInternalError("LDAP connection failed: %v", "toto")
 	}
 
 	defer l.Close()
@@ -123,20 +123,16 @@ func getLdapInformation(etudiant Etudiant, l *ldap.Conn, baseDN string) (*auth.L
 		return nil, fmt.Errorf("utilisateur inconnu: %s", etudiant.LdapIdentity.Mail)
 	}
 
-	identity, err := auth.GetLdapIdentity(sr.Entries[0])
-	if err != nil {
-		return nil, err
-	}
-
+	identity := auth.GetLdapIdentity(sr.Entries[0])
 	return identity, nil
 
 }
 
-func getRows(file multipart.File) (*[][]string, error) {
+func getRows(file multipart.File) (rows *[][]string, err error) {
 
 	// --- Réinitialiser le curseur de lecture ---
 	// La méthode Seek ramène le curseur au début du fichier
-	_, err := file.Seek(0, io.SeekStart)
+	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("erreur de réinitialisation du curseur : %w", err)
 	}
@@ -147,8 +143,10 @@ func getRows(file multipart.File) (*[][]string, error) {
 	}
 	defer func() {
 		// Close the spreadsheet.
-		if err := f.Close(); err != nil {
-			services.ErrRender(err)
+		if cerr := f.Close(); err != nil {
+			if err == nil {
+				err = cerr
+			}
 		}
 	}()
 
@@ -159,11 +157,11 @@ func getRows(file multipart.File) (*[][]string, error) {
 		return nil, errors.New("pas de données dans le fichier a importer")
 	}
 
-	rows, err := f.GetRows(sheetNames[0])
+	rows2, err := f.GetRows(sheetNames[0])
 	if err != nil {
 		return nil, err
 	}
-	return &rows, nil
+	return &rows2, nil
 }
 
 func getCohorte(cohortesFiles *multipart.File) ([]Cohorte, error) {

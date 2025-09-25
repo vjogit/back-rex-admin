@@ -4,7 +4,6 @@ import (
 	"back-rex-common/pkg/auth"
 	"back-rex-common/pkg/services"
 	"back-rex-common/pkg/user"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -25,38 +24,38 @@ type UserRequest struct {
 func CreateUser(w http.ResponseWriter, r *http.Request, cfg services.LDAPConfig) {
 	var input UserRequest
 	if err := render.DecodeJSON(r.Body, &input); err != nil {
-		render.Render(w, r, services.ErrInvalidRequest(err))
+		services.InvalidRequestError(w, r, err.Error(), services.NO_INFORMATION, nil)
+		return
+	}
+
+	sr, err := getLdapUser(input.Email, cfg)
+	if err != nil {
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
+		return
+	}
+
+	issues := validateUser(input, sr)
+	if len(issues) != 0 {
+		services.InvalidRequestError(w, r, "Invalid user", services.VALIDATION_ERROR, issues)
 		return
 	}
 
 	ctx := r.Context()
 	pgCtx := services.GetPgCtx(ctx)
-
 	tx, err := pgCtx.Db.Begin(ctx)
 	if err != nil {
-		render.Render(w, r, services.ErrRender(err))
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 
 	defer tx.Rollback(ctx)
 
 	etudiant := len(input.Roles) != 0 && strings.Contains(input.Roles, "etudiant")
+	ldapIdentity := auth.GetLdapIdentity(sr.Entries[0])
 
-	sr, err := getLdapUser(input.Email, cfg)
+	id, err := user.CreateUser(tx, ldapIdentity, ctx, input.Roles, etudiant)
 	if err != nil {
-		render.Render(w, r, services.ErrRender(err))
-		return
-	}
-
-	e, err := auth.GetLdapIdentity(sr.Entries[0])
-	if err != nil {
-		render.Render(w, r, services.ErrRender(err))
-		return
-	}
-
-	id, err := user.CreateUser(tx, e, ctx, input.Roles, etudiant)
-	if err != nil {
-		render.Render(w, r, services.ErrRender(err))
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 
@@ -64,6 +63,42 @@ func CreateUser(w http.ResponseWriter, r *http.Request, cfg services.LDAPConfig)
 	input.ID = int32(id)
 
 	render.JSON(w, r, input)
+}
+
+var allowedRoles = map[string]struct{}{
+	"admin":    {},
+	"etudiant": {},
+}
+
+func validateUser(user UserRequest, sr *ldap.SearchResult) []services.FormValidation {
+	issues := []services.FormValidation{}
+
+	for _, role := range strings.Split(user.Roles, ",") {
+		role = strings.TrimSpace(role)
+		if _, ok := allowedRoles[role]; !ok {
+			issues = append(issues, services.FormValidation{
+				Path:    "roles",
+				Message: fmt.Sprintf("role %s non autorisé", role),
+			})
+		}
+	}
+
+	if user.Email == "" {
+		issues = append(issues, services.FormValidation{
+			Path:    "email",
+			Message: "Email obligatoire",
+		})
+	} else {
+
+		if len(sr.Entries) == 0 {
+			issues = append(issues, services.FormValidation{
+				Path:    "email",
+				Message: "ldap user not found",
+			})
+		}
+	}
+
+	return issues
 }
 
 func GetUser(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +114,7 @@ func ListUser(w http.ResponseWriter, r *http.Request) {
 
 	users, err := queries.ListUser(ctx)
 	if err != nil {
-		http.Error(w, "Erreur lors de la récupération des étudiants", http.StatusInternalServerError)
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 
@@ -90,7 +125,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	var input UserRequest
 	if err := render.DecodeJSON(r.Body, &input); err != nil {
-		render.Render(w, r, services.ErrInvalidRequest(err))
+		services.InvalidRequestError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 
@@ -108,12 +143,12 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err == pgx.ErrNoRows {
-		render.Render(w, r, services.ErrRender("mis a jour par une autre personne"))
+		services.ConflictError(w, r, "", services.OPTIMISTIC_LOCKING_FAILURE, nil)
 		return
 	}
 
 	if err != nil {
-		render.Render(w, r, services.ErrRender(err))
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 
 	}
@@ -131,7 +166,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	err := queries.DeleteUser(ctx, user.ID)
 	if err != nil {
-		render.Render(w, r, services.ErrRender(err))
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 
 	}
@@ -141,24 +176,6 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 type MailCheck struct {
 	Exist bool `json:"exist"`
-}
-
-func CheckMail(w http.ResponseWriter, r *http.Request, cfg services.LDAPConfig) {
-
-	email := r.URL.Query().Get("email")
-
-	if email == "" {
-		services.ErrInvalidRequest(errors.New("doit avoir le parametre email"))
-		return
-	}
-
-	sr, err := getLdapUser(email, cfg)
-	if err != nil {
-		render.Render(w, r, services.ErrRender(err))
-		return
-	}
-	render.JSON(w, r, MailCheck{len(sr.Entries) == 1})
-
 }
 
 func getLdapUser(email string, cfg services.LDAPConfig) (*ldap.SearchResult, error) {

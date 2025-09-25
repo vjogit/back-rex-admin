@@ -13,14 +13,14 @@ func ImportCohorte(w http.ResponseWriter, r *http.Request, ldapConfig services.L
 	// Parse le multipart form (taille max 10 Mo ici)
 	err := r.ParseMultipartForm(10 << 20)
 	if err != nil {
-		services.ErrRender(err)
+		services.InvalidRequestError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 
 	// Récupère le fichier (le champ doit s'appeler "file")
 	emailsFile, err := getFile("emails", r)
 	if err != nil {
-		services.ErrRender(err)
+		services.InvalidRequestError(w, r, "pas de fichier emails", services.NO_INFORMATION, nil)
 		return
 	}
 	defer (*emailsFile).Close()
@@ -28,33 +28,36 @@ func ImportCohorte(w http.ResponseWriter, r *http.Request, ldapConfig services.L
 	// Récupère le fichier (le champ doit s'appeler "file")
 	cohortesFiles, err := getFile("cohortes", r)
 	if err != nil {
-		services.ErrRender(err)
+		services.InvalidRequestError(w, r, "pas de fichier cohortes", services.NO_INFORMATION, nil)
 		return
 	}
 	defer (*cohortesFiles).Close()
 
 	etudiants, warns, err := getEtudiantFromEmails(emailsFile)
 	if err != nil {
-		services.ErrRender(err)
+		services.InvalidRequestError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 
 	warnsLdap, err := getInfoEtudiantFromLdap(&etudiants, ldapConfig)
 	if err != nil {
-		services.ErrRender(err)
+		// ne peux avoir qu'une erreur interne
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 	warns = append(warns, warnsLdap...)
 
 	cohortes, err := getCohorte(cohortesFiles)
 	if err != nil {
-		services.ErrRender(err)
+		// ne peux avoir qu'une erreur d'analyse du fichier
+		services.InvalidRequestError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 
 	etudiants, warnsCohortes, err := affecteCohorteToEtudiant(etudiants, cohortesFiles, cohortes)
 	if err != nil {
-		services.ErrRender(err)
+		// ne peux avoir qu'une erreur d'analyse du fichier
+		services.InvalidRequestError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 
@@ -62,7 +65,8 @@ func ImportCohorte(w http.ResponseWriter, r *http.Request, ldapConfig services.L
 
 	err = toDB(r, cohortes, etudiants)
 	if err != nil {
-		services.ErrRender(err)
+		// ne peux avoir qu'une erreur interne
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 
@@ -77,7 +81,7 @@ func GetCohortes(w http.ResponseWriter, r *http.Request) {
 
 	cohortes, err := query.GetCohortes(r.Context())
 	if err != nil {
-		services.ErrRender(err)
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 	// Réponse formatée avec items et itemCount

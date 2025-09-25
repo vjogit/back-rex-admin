@@ -14,7 +14,7 @@ func GetAllFeedback(w http.ResponseWriter, r *http.Request) {
 
 	feedbacks, err := query.ListFeedbacks(context.Background())
 	if err != nil {
-		services.ErrRender(err)
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
 	// Réponse formatée avec items et itemCount
