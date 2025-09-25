@@ -6,7 +6,7 @@ ORDER BY id ASC;
 SELECT * FROM public.user WHERE id = $1;
 
 -- name: GetUserByMail :one
-SELECT * FROM public.user WHERE email = $1;
+SELECT * FROM public.user WHERE lower(email) = lower($1);
 
 -- name: ListUser :many
 SELECT * FROM public.user ORDER BY id;

@@ -40,11 +40,11 @@ func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
 }
 
 const getUserByMail = `-- name: GetUserByMail :one
-SELECT id, version, name, surname, email, roles, blame FROM public.user WHERE email = $1
+SELECT id, version, name, surname, email, roles, blame FROM public.user WHERE lower(email) = lower($1)
 `
 
-func (q *Queries) GetUserByMail(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByMail, email)
+func (q *Queries) GetUserByMail(ctx context.Context, lower string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByMail, lower)
 	var i User
 	err := row.Scan(
 		&i.ID,

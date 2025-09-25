@@ -3,7 +3,6 @@ package authentification
 import (
 	"back-rex-common/pkg/auth"
 	"back-rex-common/pkg/services"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -19,14 +18,19 @@ func PostLdap(r *http.Request, ldapIdentity *auth.LdapIdentity) (*jwt.MapClaims,
 	userByMail, err := queriesAuth.GetUserByMail(r.Context(), ldapIdentity.Mail)
 
 	if err == pgx.ErrNoRows {
-		return nil, nil, fmt.Errorf("utilisateur inconnu")
+		return nil, nil, services.NewAppValidationError("Utilisateur inconnu", "identifiant")
 	}
 
 	if err != nil {
 		return nil, nil, err
 	}
 
-	claims := jwt.MapClaims{"roles": userByMail.Roles}
+	roles := ""
+	if userByMail.Roles.Valid {
+		roles = userByMail.Roles.String
+	}
+
+	claims := jwt.MapClaims{"roles": roles}
 	subject := strconv.Itoa(int(userByMail.ID))
 	return &claims, &subject, nil // Pas de claims supplémentaires pour l'instant
 }

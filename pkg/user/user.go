@@ -50,6 +50,18 @@ func CreateUser(w http.ResponseWriter, r *http.Request, cfg services.LDAPConfig)
 
 	defer tx.Rollback(ctx)
 
+	queries := New(tx)
+	_, err = queries.GetUserByMail(ctx, input.Email)
+
+	if err == nil {
+		issues := []services.FormValidation{{Path: "email", Message: "Utilisateur existant"}}
+		services.InvalidRequestError(w, r, "Invalid user", services.VALIDATION_ERROR, issues)
+		return
+	} else if err != pgx.ErrNoRows {
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
+		return
+	}
+
 	etudiant := len(input.Roles) != 0 && strings.Contains(input.Roles, "etudiant")
 	ldapIdentity := auth.GetLdapIdentity(sr.Entries[0])
 
@@ -73,13 +85,20 @@ var allowedRoles = map[string]struct{}{
 func validateUser(user UserRequest, sr *ldap.SearchResult) []services.FormValidation {
 	issues := []services.FormValidation{}
 
-	for _, role := range strings.Split(user.Roles, ",") {
-		role = strings.TrimSpace(role)
-		if _, ok := allowedRoles[role]; !ok {
-			issues = append(issues, services.FormValidation{
-				Path:    "roles",
-				Message: fmt.Sprintf("role %s non autorisé", role),
-			})
+	if len(user.Roles) == 0 {
+		issues = append(issues, services.FormValidation{
+			Path:    "roles",
+			Message: "Un role doit etre précisé",
+		})
+	} else {
+		for _, role := range strings.Split(user.Roles, ",") {
+			role = strings.TrimSpace(role)
+			if _, ok := allowedRoles[role]; !ok {
+				issues = append(issues, services.FormValidation{
+					Path:    "roles",
+					Message: fmt.Sprintf("role %s non autorisé", role),
+				})
+			}
 		}
 	}
 
