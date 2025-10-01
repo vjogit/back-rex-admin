@@ -16,9 +16,11 @@ func RouteUtilisateur(r chi.Router, cfg services.LDAPConfig) {
 	})
 
 	r.Route("/{userID}", func(r chi.Router) {
-		r.Use(UserUse)            // Load the *Article on the request context
-		r.Get("/", GetUser)       // GET /articles/123
-		r.Put("/", UpdateUser)    // PUT /articles/123
+		r.Use(UserUse)      // Load the *Article on the request context
+		r.Get("/", GetUser) // GET /articles/123
+		r.Put("/", func(w http.ResponseWriter, r *http.Request) {
+			UpdateUser(w, r, cfg)
+		}) // PUT /articles/123
 		r.Delete("/", DeleteUser) // DELETE /articles/123
 	})
 

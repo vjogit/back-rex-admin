@@ -3,7 +3,7 @@ package user
 import (
 	"back-rex-common/pkg/auth"
 	"back-rex-common/pkg/services"
-	"back-rex-common/pkg/user"
+	usercommon "back-rex-common/pkg/user"
 	"fmt"
 	"net/http"
 	"strings"
@@ -65,7 +65,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request, cfg services.LDAPConfig)
 	etudiant := len(input.Roles) != 0 && strings.Contains(input.Roles, "etudiant")
 	ldapIdentity := auth.GetLdapIdentity(sr.Entries[0])
 
-	id, err := user.CreateUser(tx, ldapIdentity, ctx, input.Roles, etudiant)
+	id, err := usercommon.CreateUser(tx, ldapIdentity, ctx, input.Roles, etudiant)
 	if err != nil {
 		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
@@ -140,7 +140,7 @@ func ListUser(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, users)
 }
 
-func UpdateUser(w http.ResponseWriter, r *http.Request) {
+func UpdateUser(w http.ResponseWriter, r *http.Request, cfg services.LDAPConfig) {
 
 	var input UserRequest
 	if err := render.DecodeJSON(r.Body, &input); err != nil {
@@ -151,8 +151,15 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	oldUser := getUserFromCtx(r)
 
 	ctx := r.Context()
-	pgctx := services.GetPgCtx(ctx)
-	queries := New(pgctx.Db)
+	pgCtx := services.GetPgCtx(ctx)
+	tx, err := pgCtx.Db.Begin(ctx)
+	if err != nil {
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
+		return
+	}
+
+	defer tx.Rollback(ctx)
+	queries := New(tx)
 
 	user, err := queries.UpdatePartialUser(ctx, UpdatePartialUserParams{
 		ID:      oldUser.ID,
@@ -169,8 +176,41 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
+	}
+
+	etudiant := len(input.Roles) != 0 && strings.Contains(input.Roles, "etudiant")
+
+	if etudiant {
+		queriesCommon := usercommon.New(tx)
+		exist, err := queriesCommon.IsStudentExist(ctx, user.ID)
+		if err != nil {
+			services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
+			return
+		}
+		if !exist {
+			// essai de recuperer la promotion dans ldap
+			sr, err := getLdapUser(user.Email, cfg)
+			if err != nil {
+				services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
+				return
+			}
+
+			ldapIdentity := auth.GetLdapIdentity(sr.Entries[0])
+
+			err = queriesCommon.CreateStudent(ctx, usercommon.CreateStudentParams{
+				UserID:    user.ID,
+				Promotion: services.ToPgText(ldapIdentity.Promotion),
+			})
+			if err != nil {
+				services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
+				return
+			}
+
+		}
 
 	}
+
+	tx.Commit(ctx)
 
 	render.JSON(w, r, user)
 
