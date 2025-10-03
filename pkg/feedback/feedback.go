@@ -17,6 +17,10 @@ func GetAllFeedback(w http.ResponseWriter, r *http.Request) {
 		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
 		return
 	}
+
+	if feedbacks == nil {
+		feedbacks = []ListFeedbacksRow{}
+	}
 	// Réponse formatée avec items et itemCount
 	render.JSON(w, r, feedbacks)
 }

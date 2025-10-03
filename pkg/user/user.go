@@ -137,6 +137,10 @@ func ListUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if users == nil {
+		users = []User{}
+	}
+
 	render.JSON(w, r, users)
 }
 
