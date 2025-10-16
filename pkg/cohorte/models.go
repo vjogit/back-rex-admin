@@ -3,3 +3,18 @@
 //   sqlc v1.30.0
 
 package cohorte
+
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type Groupe struct {
+	ID      int64       `json:"id"`
+	Name    pgtype.Text `json:"name"`
+	PromoID int64       `json:"promo_id"`
+}
+
+type Promotion struct {
+	ID   int64       `json:"id"`
+	Name pgtype.Text `json:"name"`
+}

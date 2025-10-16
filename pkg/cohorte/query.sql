@@ -1,15 +1,31 @@
--- name: CreateCohorte :exec
-INSERT INTO public.cohorte (idExterne,nom) VALUES ($1, $2)
-    on conflict (idExterne) do update set nom = EXCLUDED.nom;
+-- name: GetPromotionById :one
+SELECT * FROM promotion where id = $1;
 
--- name: InsertUserCohorte :exec
-INSERT INTO user_cohorte (user_id, cohorte_id) VALUES ($1, $2);
+-- name: CreationPromotion :exec
+INSERT INTO promotion (id, name) 
+    VALUES ($1, $2) ON CONFLICT (id) DO UPDATE
+SET
+    name = EXCLUDED.name;
 
--- name: DeleteUserCohortes :exec
-DELETE FROM user_cohorte WHERE user_id = $1;
+-- name: GetGroupe :many
+SELECT * FROM groupe
+    ORDER BY name;
 
--- name: GetCohorteIdFromIdExterne :one
-SELECT id FROM public.cohorte WHERE idExterne = $1;
+-- name: CreationGroupe :exec
+INSERT INTO groupe (id, name, promo_id) 
+    VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    promo_id = EXCLUDED.promo_id;
 
--- name: GetCohortes :many
-SELECT id, nom FROM public.cohorte ORDER BY id;
+-- name: UpdateStudentPromo :exec
+UPDATE public.student
+SET promotion = @promotion
+WHERE user_id = @id;
+
+-- name: AddEleveToGroupe :exec
+insert into eleve_groupe(num_etudiant, id_groupe)
+    values ($1,$2);
+
+-- name: DeleteEleveToGroupe :exec
+delete from eleve_groupe;

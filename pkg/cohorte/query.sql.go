@@ -7,62 +7,85 @@ package cohorte
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createCohorte = `-- name: CreateCohorte :exec
-INSERT INTO public.cohorte (idExterne,nom) VALUES ($1, $2)
-    on conflict (idExterne) do update set nom = EXCLUDED.nom
+const addEleveToGroupe = `-- name: AddEleveToGroupe :exec
+insert into eleve_groupe(num_etudiant, id_groupe)
+    values ($1,$2)
 `
 
-type CreateCohorteParams struct {
-	Idexterne int32  `json:"idexterne"`
-	Nom       string `json:"nom"`
+type AddEleveToGroupeParams struct {
+	NumEtudiant int32 `json:"num_etudiant"`
+	IDGroupe    int32 `json:"id_groupe"`
 }
 
-func (q *Queries) CreateCohorte(ctx context.Context, arg CreateCohorteParams) error {
-	_, err := q.db.Exec(ctx, createCohorte, arg.Idexterne, arg.Nom)
+func (q *Queries) AddEleveToGroupe(ctx context.Context, arg AddEleveToGroupeParams) error {
+	_, err := q.db.Exec(ctx, addEleveToGroupe, arg.NumEtudiant, arg.IDGroupe)
 	return err
 }
 
-const deleteUserCohortes = `-- name: DeleteUserCohortes :exec
-DELETE FROM user_cohorte WHERE user_id = $1
+const creationGroupe = `-- name: CreationGroupe :exec
+INSERT INTO groupe (id, name, promo_id) 
+    VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    promo_id = EXCLUDED.promo_id
 `
 
-func (q *Queries) DeleteUserCohortes(ctx context.Context, userID int32) error {
-	_, err := q.db.Exec(ctx, deleteUserCohortes, userID)
+type CreationGroupeParams struct {
+	ID      int64       `json:"id"`
+	Name    pgtype.Text `json:"name"`
+	PromoID int64       `json:"promo_id"`
+}
+
+func (q *Queries) CreationGroupe(ctx context.Context, arg CreationGroupeParams) error {
+	_, err := q.db.Exec(ctx, creationGroupe, arg.ID, arg.Name, arg.PromoID)
 	return err
 }
 
-const getCohorteIdFromIdExterne = `-- name: GetCohorteIdFromIdExterne :one
-SELECT id FROM public.cohorte WHERE idExterne = $1
+const creationPromotion = `-- name: CreationPromotion :exec
+INSERT INTO promotion (id, name) 
+    VALUES ($1, $2) ON CONFLICT (id) DO UPDATE
+SET
+    name = EXCLUDED.name
 `
 
-func (q *Queries) GetCohorteIdFromIdExterne(ctx context.Context, idexterne int32) (int32, error) {
-	row := q.db.QueryRow(ctx, getCohorteIdFromIdExterne, idexterne)
-	var id int32
-	err := row.Scan(&id)
-	return id, err
+type CreationPromotionParams struct {
+	ID   int64       `json:"id"`
+	Name pgtype.Text `json:"name"`
 }
 
-const getCohortes = `-- name: GetCohortes :many
-SELECT id, nom FROM public.cohorte ORDER BY id
+func (q *Queries) CreationPromotion(ctx context.Context, arg CreationPromotionParams) error {
+	_, err := q.db.Exec(ctx, creationPromotion, arg.ID, arg.Name)
+	return err
+}
+
+const deleteEleveToGroupe = `-- name: DeleteEleveToGroupe :exec
+delete from eleve_groupe
 `
 
-type GetCohortesRow struct {
-	ID  int32  `json:"id"`
-	Nom string `json:"nom"`
+func (q *Queries) DeleteEleveToGroupe(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteEleveToGroupe)
+	return err
 }
 
-func (q *Queries) GetCohortes(ctx context.Context) ([]GetCohortesRow, error) {
-	rows, err := q.db.Query(ctx, getCohortes)
+const getGroupe = `-- name: GetGroupe :many
+SELECT id, name, promo_id FROM groupe
+    ORDER BY name
+`
+
+func (q *Queries) GetGroupe(ctx context.Context) ([]Groupe, error) {
+	rows, err := q.db.Query(ctx, getGroupe)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetCohortesRow
+	var items []Groupe
 	for rows.Next() {
-		var i GetCohortesRow
-		if err := rows.Scan(&i.ID, &i.Nom); err != nil {
+		var i Groupe
+		if err := rows.Scan(&i.ID, &i.Name, &i.PromoID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -73,16 +96,29 @@ func (q *Queries) GetCohortes(ctx context.Context) ([]GetCohortesRow, error) {
 	return items, nil
 }
 
-const insertUserCohorte = `-- name: InsertUserCohorte :exec
-INSERT INTO user_cohorte (user_id, cohorte_id) VALUES ($1, $2)
+const getPromotionById = `-- name: GetPromotionById :one
+SELECT id, name FROM promotion where id = $1
 `
 
-type InsertUserCohorteParams struct {
-	UserID    int32 `json:"user_id"`
-	CohorteID int32 `json:"cohorte_id"`
+func (q *Queries) GetPromotionById(ctx context.Context, id int64) (Promotion, error) {
+	row := q.db.QueryRow(ctx, getPromotionById, id)
+	var i Promotion
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
 }
 
-func (q *Queries) InsertUserCohorte(ctx context.Context, arg InsertUserCohorteParams) error {
-	_, err := q.db.Exec(ctx, insertUserCohorte, arg.UserID, arg.CohorteID)
+const updateStudentPromo = `-- name: UpdateStudentPromo :exec
+UPDATE public.student
+SET promotion = $1
+WHERE user_id = $2
+`
+
+type UpdateStudentPromoParams struct {
+	Promotion pgtype.Text `json:"promotion"`
+	ID        int32       `json:"id"`
+}
+
+func (q *Queries) UpdateStudentPromo(ctx context.Context, arg UpdateStudentPromoParams) error {
+	_, err := q.db.Exec(ctx, updateStudentPromo, arg.Promotion, arg.ID)
 	return err
 }

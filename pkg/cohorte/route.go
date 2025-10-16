@@ -12,5 +12,5 @@ func RouteCohorte(r chi.Router, ldapConfig services.LDAPConfig) {
 		ImportCohorte(w, r, ldapConfig)
 	})
 
-	r.Get("/", GetCohortes)
+	// r.Get("/", GetCohortes)
 }

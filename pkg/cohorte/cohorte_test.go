@@ -18,14 +18,9 @@ func TestImportCohorte(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	err := addFilePart(writer, "emails", testdata.Path("mails.xlsx"))
+	err := addFilePart(writer, "data", testdata.Path("data.json"))
 	if err != nil {
-		t.Fatalf("Failed to add emails file part: %v", err)
-	}
-
-	err = addFilePart(writer, "cohortes", testdata.Path("cohortes.xlsx"))
-	if err != nil {
-		t.Fatalf("Failed to add cohortes file part: %v", err)
+		t.Fatalf("Failed to add data file part: %v", err)
 	}
 
 	err = writer.Close()
