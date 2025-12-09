@@ -6,6 +6,8 @@ import (
 	"io"
 
 	"net/http"
+
+	"github.com/go-chi/render"
 )
 
 type Eleve struct {
@@ -69,4 +71,40 @@ func ImportCohorte(w http.ResponseWriter, r *http.Request, ldapConfig services.L
 	}
 	// Réponse formatée avec items et itemCount
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func GetPromo(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	pgctx := services.GetPgCtx(ctx)
+	queries := New(pgctx.Db)
+
+	promos, err := queries.GetPromotions(ctx)
+	if err != nil {
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
+		return
+	}
+
+	if promos == nil {
+		promos = []Promotion{}
+	}
+
+	render.JSON(w, r, promos)
+}
+
+func GetGroupe(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	pgctx := services.GetPgCtx(ctx)
+	queries := New(pgctx.Db)
+
+	groupes, err := queries.GetGroupe(ctx)
+	if err != nil {
+		services.InternalServerError(w, r, err.Error(), services.NO_INFORMATION, nil)
+		return
+	}
+
+	if groupes == nil {
+		groupes = []Groupe{}
+	}
+
+	render.JSON(w, r, groupes)
 }

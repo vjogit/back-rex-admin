@@ -78,8 +78,9 @@ func CreateUser(w http.ResponseWriter, r *http.Request, cfg services.LDAPConfig)
 }
 
 var allowedRoles = map[string]struct{}{
-	"admin":    {},
-	"etudiant": {},
+	"admin":        {},
+	"etudiant":     {},
+	"gestionnaire": {},
 }
 
 func validateUser(user UserRequest, sr *ldap.SearchResult) []services.FormValidation {

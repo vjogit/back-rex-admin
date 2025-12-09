@@ -107,6 +107,31 @@ func (q *Queries) GetPromotionById(ctx context.Context, id int64) (Promotion, er
 	return i, err
 }
 
+const getPromotions = `-- name: GetPromotions :many
+SELECT id, name FROM promotion
+    ORDER BY name
+`
+
+func (q *Queries) GetPromotions(ctx context.Context) ([]Promotion, error) {
+	rows, err := q.db.Query(ctx, getPromotions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Promotion
+	for rows.Next() {
+		var i Promotion
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateStudentPromo = `-- name: UpdateStudentPromo :exec
 UPDATE public.student
 SET promotion = $1

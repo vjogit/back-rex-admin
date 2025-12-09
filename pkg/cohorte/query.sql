@@ -7,6 +7,10 @@ INSERT INTO promotion (id, name)
 SET
     name = EXCLUDED.name;
 
+-- name: GetPromotions :many
+SELECT * FROM promotion
+    ORDER BY name;
+
 -- name: GetGroupe :many
 SELECT * FROM groupe
     ORDER BY name;
@@ -29,3 +33,5 @@ insert into eleve_groupe(num_etudiant, id_groupe)
 
 -- name: DeleteEleveToGroupe :exec
 delete from eleve_groupe;
+
+

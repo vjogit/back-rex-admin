@@ -52,7 +52,6 @@ func main() {
 			log.Println("Ping reçu api 1!")
 			w.Write([]byte("pong"))
 		})
-
 		r.Route("/auth", func(r chi.Router) {
 			auth.RoutesAuth(r, cfg, authentification.PostLdap, getAccessToken)
 		})
